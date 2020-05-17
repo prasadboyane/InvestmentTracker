@@ -218,7 +218,6 @@ def show_menu():
     print('******   6. Exit             ******')
     choice = input('Please enter your choice: ')
     if choice == '1':
-        print('choice 1')
         insert_entry()
     elif choice == '2':
         update_entry()
