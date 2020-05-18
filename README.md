@@ -10,10 +10,10 @@ This is python based Asset Tracker where we can store investments in encrypted f
 - Edit existing entries -DONE
 - save this data in encrypted format in same excel to store creds excel --DONE
 - Show data in matplot on day by day basis --DONE
-- Password recovery option -- Working
+- Password recovery option -- DONE
 - Add options for Insights/Aggrigations
 - Add neat Interface
-- Add more information to Graph
+- Add more information to Graph --Working
 
 # Dependencies
 1. openpyxl
