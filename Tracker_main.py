@@ -3,6 +3,7 @@ import os.path
 import time
 from datetime import datetime
 import matplotlib.pyplot as plt
+from pass_recovery import *
 
 
 import base64
@@ -14,16 +15,16 @@ from cryptography.fernet import Fernet
 
 
 
-#filepath = "/home/ubun/Desktop/stocksinfo/test101.xlsx"
-
-
-
 def create_user():
     #Create User
     user=input('Please Enter New Username: ')
     password=input('Please Enter New Password: ')
     confirm_password=input('Please confiem Password again: ')
     create_dtm = time.strftime("%x")
+    mobile_number = input('Please enter your 10 digit Mobile Number: ')
+    if len(mobile_number) !=10:
+        print('Please enter valid Mobile Number as it is required for password recovery !')
+        create_user()
     
     if password == confirm_password:
         wb = openpyxl.Workbook()
@@ -31,11 +32,12 @@ def create_user():
         sheet.title = "Metadata"
         wb.save('Tracker_enc.xlsx')
         
-        user_creds=[user,password,create_dtm]
         
         sheet['A1'] = user
         sheet['B1'] = password
         sheet['C1'] = create_dtm
+        sheet['D1'] = mobile_number
+        
         
         sheet1 = wb.create_sheet("data")
         sheet1 = wb["data"]
@@ -60,19 +62,87 @@ def create_user():
         create_user()
         
 
+def generate_Pcode():
+    import random
+    import math
+    
+    digits = [i for i in range(0, 10)]
+    
+    random_pcode = ""
+    
+    for i in range(6):
+        index = math.floor(random.random() * 10)
+        random_pcode += str(digits[index])
+    
+    return random_pcode
+
+def recover_pass():
+    mob_no=input('Enter your registered 10 digit Mobile Number:')
+    if len(mob_no) != 10:
+        print('Please enter valid 10 digit Mobile number')
+        recover_pass()
+    
+    decrypt_file('Tracker_enc.xlsx',load_key())
+    wb = openpyxl.load_workbook('Tracker_enc.xlsx')
+    ws = wb["Metadata"]
+    reg_mob_no = ws['D1'].value
+    encrypt_file('Tracker_enc.xlsx',load_key())
+    
+    if mob_no != reg_mob_no:
+        print('This mobile number is not registered ! ')
+        ip=input('press r to retry or e to exit: ')
+        if ip =='r':
+            encrypt_file('Tracker_enc.xlsx',load_key())
+            recover_pass()
+        else:
+            encrypt_file('Tracker_enc.xlsx',load_key())
+            exit()
+    
+    else:
+        pcode = generate_Pcode()
+        response = sendPostRequest(URL, 'api-key', 'secret-api', 'stage', reg_mob_no, 'mailaddress@gmail.com', 'Your P-CODE is: {}'.format(pcode) )
+        if '"status":"success"' in response.text:
+            print('P-CODE sent successfully')
+            rc_pcode=input('Please enter 6 digit P-CODE: ')
+            if rc_pcode == pcode:
+                new_pass=input('Please enter new password: ')
+                decrypt_file('Tracker_enc.xlsx',load_key())
+                wb = openpyxl.load_workbook('Tracker_enc.xlsx')
+                ws = wb["Metadata"]
+                ws['B1'] = new_pass
+                wb.save('Tracker_enc.xlsx') 
+                encrypt_file('Tracker_enc.xlsx',load_key())
+                login_user()
+        else:
+            print('Something went wrong. Please try again.')
+            encrypt_file('Tracker_enc.xlsx',load_key())
+            recover_pass()
+
 def login_user():
     #Create User
-    decrypt_file('Tracker_enc.xlsx',load_key())
     user=input('Please Enter Username: ')
     password=input('Please Enter Password: ')
-    wb = openpyxl.load_workbook('Tracker_enc.xlsx')
-    ws = wb.active
     
+    decrypt_file('Tracker_enc.xlsx',load_key())
+    wb = openpyxl.load_workbook('Tracker_enc.xlsx')
+    ws = wb["Metadata"]   
     if user == ws['A1'].value  and password == ws['B1'].value:
         print('logged in !')
     else:
         print('password is incorrect ! Try again !')
-        login_user()
+        print('****     1. Try again        *******')
+        print('****     2. Forgot Password? *******')
+        print('****     3. exit *******')
+        retry_creds = input('Please Enter your choice: ')
+        if retry_creds == '2':
+            encrypt_file('Tracker_enc.xlsx',load_key())
+            recover_pass()
+        elif retry_creds == '3':
+            encrypt_file('Tracker_enc.xlsx',load_key())
+            exit()
+        else:
+            encrypt_file('Tracker_enc.xlsx',load_key())
+            login_user()
 
 
 def insert_entry():
