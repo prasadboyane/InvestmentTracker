@@ -3,6 +3,8 @@ import os.path
 import time
 from datetime import datetime
 import matplotlib.pyplot as plt
+from matplotlib.pyplot import figure
+
 from pass_recovery import *
 
 
@@ -47,13 +49,15 @@ def create_user():
         sheet1['D1'] = 'assetname'
         sheet1['E1'] = 'Maturity date'
         wb.save('Tracker_enc.xlsx')
-        
         """
         Generates a key and save it into a file
         """
         key = Fernet.generate_key()
         with open("key.key", "wb") as key_file:
             key_file.write(key)        
+            
+        
+        encrypt_file('Tracker_enc.xlsx',load_key())
         
     else:
         print()
@@ -92,17 +96,15 @@ def recover_pass():
         print('This mobile number is not registered ! ')
         ip=input('press r to retry or e to exit: ')
         if ip =='r':
-            encrypt_file('Tracker_enc.xlsx',load_key())
             recover_pass()
         else:
-            encrypt_file('Tracker_enc.xlsx',load_key())
             exit()
     
     else:
         pcode = generate_Pcode()
-        response = sendPostRequest(URL, 'api-key', 'secret-api', 'stage', reg_mob_no, 'mailaddress@gmail.com', 'Your P-CODE is: {}'.format(pcode) )
+        response = sendPostRequest(URL, '<provided-api-key>', '<secret-api-key>', 'stage', reg_mob_no, '<active-sender-id>', 'Hi, Your P-CODE is: {}. Please do not share it with anyone'.format(pcode) )
         if '"status":"success"' in response.text:
-            print('P-CODE sent successfully')
+            print('P-CODE sent successfully !! ')
             rc_pcode=input('Please enter 6 digit P-CODE: ')
             if rc_pcode == pcode:
                 new_pass=input('Please enter new password: ')
@@ -115,7 +117,6 @@ def recover_pass():
                 login_user()
         else:
             print('Something went wrong. Please try again.')
-            encrypt_file('Tracker_enc.xlsx',load_key())
             recover_pass()
 
 def login_user():
@@ -127,23 +128,23 @@ def login_user():
     wb = openpyxl.load_workbook('Tracker_enc.xlsx')
     ws = wb["Metadata"]   
     if user == ws['A1'].value  and password == ws['B1'].value:
+        encrypt_file('Tracker_enc.xlsx',load_key())
         print('logged in !')
     else:
+        encrypt_file('Tracker_enc.xlsx',load_key())
         print('password is incorrect ! Try again !')
         print('****     1. Try again        *******')
         print('****     2. Forgot Password? *******')
         print('****     3. exit *******')
         retry_creds = input('Please Enter your choice: ')
         if retry_creds == '2':
-            encrypt_file('Tracker_enc.xlsx',load_key())
             recover_pass()
         elif retry_creds == '3':
-            encrypt_file('Tracker_enc.xlsx',load_key())
             exit()
         else:
-            encrypt_file('Tracker_enc.xlsx',load_key())
             login_user()
-
+    
+    
 
 def insert_entry():
     amount_entry = input('Please enter amount: ')
@@ -155,7 +156,16 @@ def insert_entry():
         print('Please valid enter date in correct format !')
         insert_entry()
     
-    decrypt_file('Tracker_enc.xlsx',load_key())
+    print('----------------')
+    print('1. FD')
+    print('2. RD')
+    print('3. MF')
+    print('----------------')
+    inv_type_entry=input('Select Category Number: ')
+    if not (inv_type_entry == '1' or inv_type_entry == '2' or inv_type_entry == '3'):
+        print('Please enter select category number !')
+        insert_entry()
+    
     wb = openpyxl.load_workbook('Tracker_enc.xlsx')
     data_sheet = wb['data']
     
@@ -164,7 +174,7 @@ def insert_entry():
     except:
         max_row_for_c=0
         
-    row = (max_row_for_c,amount_entry,date_entry)
+    row = (max_row_for_c,amount_entry,str(date_entry),inv_type_entry)
     data_sheet.append(row)
     wb.save('Tracker_enc.xlsx') 
     go_next()
@@ -174,7 +184,6 @@ def update_entry():
     id_entry_int=int(id_entry)+1
     id_entry_1=str(id_entry_int)
     
-    decrypt_file('Tracker_enc.xlsx',load_key())
     wb = openpyxl.load_workbook('Tracker_enc.xlsx')
     data_sheet = wb["data"]
     i_a = 'A{}'.format(id_entry_1)
@@ -225,7 +234,6 @@ def update_entry():
 
 
 def view_entry():
-    decrypt_file('Tracker_enc.xlsx',load_key())
     wb = openpyxl.load_workbook('Tracker_enc.xlsx')
     ws = wb["data"]
     max_row_for_a = max((c.row for c in ws['A'] if c.value is not None))
@@ -238,7 +246,6 @@ def view_entry():
 
 
 def delete_entry():
-    decrypt_file('Tracker_enc.xlsx',load_key())
     wb = openpyxl.load_workbook('Tracker_enc.xlsx')
     ws = wb["data"]
     
@@ -249,46 +256,120 @@ def delete_entry():
     
 
 def view_graph():
-    decrypt_file('Tracker_enc.xlsx',load_key())
+    
+    
+    fig = plt.figure(num=None, figsize=(13, 6), dpi=80, facecolor='w', edgecolor='k')
+    man = plt.get_current_fig_manager()
+    man.canvas.set_window_title("Investment Dashboard")
+    
     wb = openpyxl.load_workbook('Tracker_enc.xlsx')
     ws = wb["data"]
+    max_row_for_a = max((c.row for c in ws['A'] if c.value is not None))
     
+    #To set X axis based on dates
     date_arr=[]
     colC = ws['C']
     for cell in colC:
         if cell.value != 'date':
             date_arr.append(cell.value)
-    print()    
-    
     date_arr.sort()
     min_date=min(date_arr)
     max_date=max(date_arr)
     
-    amount_arr=[]
+    
+    #To set total amounts Y axis
+    tot_amount_arr=[]
     colB = ws['B']
     for cell in colB:
         if cell.value != 'amount':
-            amount_arr.append(cell.value)
-    print()    
+            tot_amount_arr.append(int(cell.value))  
+    tot_amount_arr.sort()
+    min_am=str(min(tot_amount_arr))
+    max_am=str(max(tot_amount_arr))
+    total_inv=sum(tot_amount_arr)
+  
+  
+    #generating 3 y-amount axis
+    fd_y_list=[]
+    rd_y_list=[]
+    mf_y_list=[]
+   
+    for row in ws.iter_rows(min_row=2, min_col=2, max_col=4, max_row=max_row_for_a):
+        for cell in row:
+            if row[2].value == '1':
+                fd_y_list.append(cell.value)
+            elif row[2].value == '2':
+                rd_y_list.append(cell.value)
+            else:
+                mf_y_list.append(cell.value)
+                
+    fd_y_list=list(filter(lambda a: a != '1', fd_y_list))
+    rd_y_list=list(filter(lambda a: a != '2', rd_y_list))
+    mf_y_list=list(filter(lambda a: a != '3', mf_y_list))
     
-    amount_arr.sort()
-    min_am=min(amount_arr)
-    max_am=max(amount_arr)
+    fd_y_list =[ x for x in fd_y_list if "-" not in x ]
+    rd_y_list =[ x for x in rd_y_list if "-" not in x ]
+    mf_y_list =[ x for x in mf_y_list if "-" not in x ]
     
+    #convert to int as matplot y-axis array should be numeric to sort properly
+    fd_y_list=[int(i) for i in fd_y_list] 
+    rd_y_list=[int(i) for i in rd_y_list] 
+    mf_y_list=[int(i) for i in mf_y_list] 
     
-    plt.plot(date_arr, amount_arr,'go--', linewidth=1, markersize=2)
-    plt.axis([min_date, max_date, min_am, max_am])
-    plt.ylabel('Amount')
-    plt.show()
-    go_next()
+    #print('y axis: ',fd_y_list)
+    #print('y axis: ',rd_y_list)
+    #print('y axis: ',mf_y_list) 
+   
+    #generating 3 x-amount axis
+    fd_x_list=[]
+    rd_x_list=[]
+    mf_x_list=[]
+   
+    for row in ws.iter_rows(min_row=2, min_col=3, max_col=4, max_row=max_row_for_a):
+        for cell in row:
+            if row[1].value == '1':
+                fd_x_list.append(cell.value)
+            elif row[1].value == '2':
+                rd_x_list.append(cell.value)
+            else:
+                mf_x_list.append(cell.value)
+                
+    fd_x_list=list(filter(lambda a: a != '1', fd_x_list))
+    rd_x_list=list(filter(lambda a: a != '2', rd_x_list))
+    mf_x_list=list(filter(lambda a: a != '3', mf_x_list))
+    
+    fd_x_list=[datetime.strptime(i, '%Y-%m-%d %H:%M:%S') for i in fd_x_list] 
+    rd_x_list=[datetime.strptime(i, '%Y-%m-%d %H:%M:%S') for i in rd_x_list] 
+    mf_x_list=[datetime.strptime(i, '%Y-%m-%d %H:%M:%S') for i in mf_x_list] 
+    #datee2 = datetime.strptime(datee, '%Y-%m-%d %H:%M:%S')
+    
+    #print('x axis: ',fd_x_list)
+    #print('x axis: ',rd_x_list)
+    #print('x axis: ',mf_x_list)  
 
+            
+                
+    plt.plot(fd_x_list, fd_y_list, color='#03DAC6', linestyle='-', marker='o',linewidth=0.8, label='FD')
+    plt.plot(rd_x_list, rd_y_list, color='#018786', linestyle='-', marker='o',linewidth=0.8, label='RD')
+    plt.plot(mf_x_list, mf_y_list, color='#f44336', linestyle='-', marker='o',linewidth=0.8, label='MF')
+    
+    #plt.axis([min_date, max_date, '0', max_am])
+    plt.title('Your Investment Journey: {} INR'.format(total_inv))
+    #plt.text(1,1, r'$Total Investment={}$'.format(total_inv), bbox=dict(facecolor='blue', alpha=0.5))
+    plt.ylabel('Amount (INR)')
+    plt.xlabel('Tenure (Months)')
+    
+    plt.legend() #to tag each graph to its label
+    #plt.tight_layout() # To adjust as per screen size
+    plt.show()
+    
+    go_next()
     
 def go_next():
     nxt = input('Press "m" for Main Menu & "e" for exit ')
     if nxt=='m':
         show_menu()
     elif nxt=='e':
-        encrypt_file('Tracker_enc.xlsx',load_key())
         exit()
     else:
         print('Please enter valid choice !')
@@ -303,6 +384,7 @@ def encrypt_file(filename, key):
     """
     Given a filename (str) and key (bytes), it encrypts the file and write it
     """
+    #print('encrypting file...')
     f = Fernet(key)
     
     with open(filename, "rb") as file:
@@ -320,6 +402,7 @@ def decrypt_file(filename, key):
     """
     Given a filename (str) and key (bytes), it decrypts the file and write it
     """
+    #print('decrypting file...')
     f = Fernet(key)
     with open(filename, "rb") as file:
         # read the encrypted data
@@ -332,7 +415,6 @@ def decrypt_file(filename, key):
 
 
 def show_menu():
-    encrypt_file('Tracker_enc.xlsx',load_key())
     print('******   1. Insert new Entry ******')
     print('******   2. Update Entry     ******')
     print('******   3. Delete Entry     ******')
@@ -351,16 +433,24 @@ def show_menu():
     elif choice == '5':
         view_graph()
     elif choice == '6':
-        exit()
+        pass
     else:
         print('Enter valid choice !')
         show_menu()
         
 
 ##START PROGRAM HERE
-if os.path.exists('Tracker_enc.xlsx') == True:
-    login_user()
-else:
-    create_user()
+try:
+    if os.path.exists('Tracker_enc.xlsx') == True:
+        login_user()
+    else:
+        create_user()
+    
+    decrypt_file('Tracker_enc.xlsx',load_key())
+    show_menu()
+except Exception as e:
+    print('Something went wrong ! ERROR: ', e)
 
-show_menu()
+finally:
+    encrypt_file('Tracker_enc.xlsx',load_key())
+    exit()  

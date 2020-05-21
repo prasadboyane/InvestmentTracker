@@ -7,15 +7,18 @@ This is python based Asset Tracker where we can store investments in encrypted f
 - need to login before use, Creds are stored in auto-generated excels first columns --DONE
 - User can enter amount, date (mandate) --DONE
 - additionally user can enter assetname, maturity date --DONE
-- Edit existing entries -DONE
+- Edit existing entries --DONE
 - save this data in encrypted format in same excel to store creds excel --DONE
 - Show data in matplot on day by day basis --DONE
 - Password recovery option -- DONE
-- Add options for Insights/Aggrigations --Working
-- Add neat Interface
+- Add options for Insights/Aggrigations --DONE
+- Add neat Interface --working
 - Add more information to Graph --DONE
 
 # Dependencies
 1. openpyxl
 2. matplotlib.pyplot
+
+# Suggestions and enhancements
+Suggestions are always welcome. :)
 
